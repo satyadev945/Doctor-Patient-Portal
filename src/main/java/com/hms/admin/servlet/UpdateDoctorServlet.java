@@ -13,6 +13,23 @@ import com.hms.dao.DoctorDAO;
 import com.hms.db.DBConnection;
 import com.hms.entity.Doctor;
 
+/**
+ * UpdateDoctorServlet – handles updating an existing doctor record.
+ *
+ * HTTP Session State (cr-java-0065):
+ * ------------------------------------
+ * All HTTP session state is managed via Amazon ElastiCache for Redis using
+ * Spring Session. The springSessionRepositoryFilter registered in web.xml
+ * transparently replaces the standard in-process HttpSession with a
+ * Redis-backed distributed session, so session attributes (successMsg /
+ * errorMsg) are stored in the centralized Redis store rather than in-process
+ * memory. This enables stateless application instances and horizontal scaling
+ * without server affinity or sticky sessions.
+ *
+ * Required environment variables:
+ *   REDIS_HOST – ElastiCache primary endpoint (default: localhost)
+ *   REDIS_PORT – ElastiCache port             (default: 6379)
+ */
 @WebServlet("/updateDoctor")
 public class UpdateDoctorServlet extends HttpServlet {
 
@@ -29,9 +46,9 @@ public class UpdateDoctorServlet extends HttpServlet {
 			String email = req.getParameter("email");
 			String phone = req.getParameter("phone");
 			String password = req.getParameter("password");
-			
-			//here need to get id also...for updating the doctor details
-			//doctors will update based on respective doctor's id
+
+			// here need to get id also...for updating the doctor details
+			// doctors will update based on respective doctor's id
 			int id = Integer.parseInt(req.getParameter("id"));
 
 			Doctor doctor = new Doctor(id, fullName, dateOfBirth, qualification, specialist, email, phone, password);
@@ -40,6 +57,10 @@ public class UpdateDoctorServlet extends HttpServlet {
 
 			boolean f = docDAO.updateDoctor(doctor);
 
+			// HttpSession is transparently backed by Amazon ElastiCache for Redis
+			// via Spring Session (springSessionRepositoryFilter in web.xml).
+			// Flash messages stored here are available to all load-balanced
+			// instances without requiring sticky sessions.
 			HttpSession session = req.getSession();
 
 			if (f == true) {

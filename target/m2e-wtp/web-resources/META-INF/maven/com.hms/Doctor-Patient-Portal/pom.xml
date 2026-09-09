@@ -2,10 +2,18 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.hms</groupId>
 	<artifactId>Doctor-Patient-Portal</artifactId>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Doctor-Patient-Portal Maven Webapp</name>
 	<url>http://maven.apache.org</url>
+	<properties>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<!-- Spring Session BOM version - compatible with Java 8 / Servlet 4 -->
+		<spring.session.version>2.7.4</spring.session.version>
+		<spring.data.redis.version>2.7.4</spring.data.redis.version>
+		<lettuce.version>6.2.4.RELEASE</lettuce.version>
+	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -14,11 +22,28 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Embedded Tomcat - replaces external application server for executable JAR deployment -->
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-core</artifactId>
+			<version>9.0.76</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-jasper</artifactId>
+			<version>9.0.76</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-el</artifactId>
+			<version>9.0.76</version>
+		</dependency>
+
+		<!-- Servlet API provided by embedded Tomcat (compile scope, not provided) -->
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
 			<version>4.0.1</version>
-			<scope>provided</scope>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
@@ -42,14 +67,151 @@
 			<version>3.0.0</version>
 		</dependency>
 
+		<!-- ============================================================
+		     Spring Session + Amazon ElastiCache for Redis
+		     Replaces in-memory HttpSession with a distributed Redis-backed
+		     session store, enabling stateless instances and horizontal scaling.
+		     ============================================================ -->
+
+		<!-- Spring Session Core -->
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-core</artifactId>
+			<version>${spring.session.version}</version>
+		</dependency>
+
+		<!-- Spring Session Data Redis - bridges Spring Session to Redis -->
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-data-redis</artifactId>
+			<version>${spring.session.version}</version>
+		</dependency>
+
+		<!-- Spring Data Redis - RedisTemplate and connection abstractions -->
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-redis</artifactId>
+			<version>${spring.data.redis.version}</version>
+		</dependency>
+
+		<!-- Lettuce - non-blocking Redis client used by Spring Data Redis -->
+		<dependency>
+			<groupId>io.lettuce</groupId>
+			<artifactId>lettuce-core</artifactId>
+			<version>${lettuce.version}</version>
+		</dependency>
+
+		<!-- Spring Context - required for @Configuration / @Bean support -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>5.3.29</version>
+		</dependency>
+
+		<!-- Spring Web - required for AbstractHttpSessionApplicationInitializer -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+			<version>5.3.29</version>
+		</dependency>
+
+		<!-- HikariCP - high-performance JDBC connection pool replacing raw DriverManager connections -->
+		<dependency>
+			<groupId>com.zaxxer</groupId>
+			<artifactId>HikariCP</artifactId>
+			<version>5.0.1</version>
+		</dependency>
+
+		<!-- AWS Secrets Manager SDK - replaces hardcoded credentials with cloud-native secret management -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-secretsmanager</artifactId>
+			<version>1.12.470</version>
+		</dependency>
+
+		<!-- AWS SDK Core (transitive, pinned for consistency) -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-core</artifactId>
+			<version>1.12.470</version>
+		</dependency>
+
+		<!-- Jackson Databind - used by AwsSecretsManagerUtil to parse JSON secrets -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.15.2</version>
+		</dependency>
 
 	</dependencies>
 	<build>
 		<plugins>
+			<!-- maven-shade-plugin: produces a single self-contained executable JAR
+			     (uber-jar) with embedded Tomcat, replacing the WAR packaging.
+			     This enables container deployment on Amazon ECS, EKS, or AWS Fargate
+			     without any external application server. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-war-plugin</artifactId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.4.1</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>com.hms.main.Main</mainClass>
+								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+									<resource>META-INF/spring.handlers</resource>
+								</transformer>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+									<resource>META-INF/spring.schemas</resource>
+								</transformer>
+							</transformers>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- maven-resources-plugin: copies webapp resources into the JAR so
+			     embedded Tomcat can serve JSPs and static assets from the classpath -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
 				<version>3.3.1</version>
+				<executions>
+					<execution>
+						<id>copy-webapp-resources</id>
+						<phase>process-resources</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.outputDirectory}/webapp</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/main/webapp</directory>
+									<filtering>false</filtering>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<finalName>Doctor-Patient-Portal</finalName>

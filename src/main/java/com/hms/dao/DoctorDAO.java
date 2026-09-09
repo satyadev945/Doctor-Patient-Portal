@@ -6,8 +6,9 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-//import javax.security.auth.message.callback.PrivateKeyCallback.Request;
-import javax.servlet.http.HttpSession;
+// HttpSession import removed: DoctorDAO is a pure data-access object and does
+// not interact with HTTP sessions. Session state is managed externally by
+// Amazon ElastiCache for Redis via Spring Session (cr-java-0065).
 
 import com.hms.entity.Doctor;
 

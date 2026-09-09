@@ -11,6 +11,15 @@ import javax.servlet.http.HttpSession;
 
 import com.hms.entity.User;
 
+/**
+ * AdminLoginServlet – handles admin authentication.
+ *
+ * Session state (adminObj, errorMsg) is stored via the standard HttpSession
+ * API.  The springSessionRepositoryFilter registered in web.xml transparently
+ * replaces the container's in-process session store with Amazon ElastiCache
+ * for Redis (Spring Session), enabling stateless instances and horizontal
+ * scaling without server affinity (cr-java-0065).
+ */
 @WebServlet("/adminLogin")
 public class AdminLoginServlet extends HttpServlet {
 
@@ -23,6 +32,9 @@ public class AdminLoginServlet extends HttpServlet {
 			String email = req.getParameter("email");
 			String password = req.getParameter("password");
 			
+			// HttpSession is backed by Amazon ElastiCache for Redis via Spring Session.
+			// All setAttribute / getAttribute calls are transparently distributed,
+			// so no server affinity is required when running multiple instances.
 			HttpSession session = req.getSession();
 			
 			//logic for a static Admin
