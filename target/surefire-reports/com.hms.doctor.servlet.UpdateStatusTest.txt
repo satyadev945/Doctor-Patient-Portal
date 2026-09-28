@@ -1,0 +1,26 @@
+-------------------------------------------------------------------------------
+Test set: com.hms.doctor.servlet.UpdateStatusTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 2, Errors: 0, Skipped: 0, Time elapsed: 0.032 s <<< FAILURE! -- in com.hms.doctor.servlet.UpdateStatusTest
+com.hms.doctor.servlet.UpdateStatusTest.testDoPost_withInvalidId_shouldThrowNumberFormatException -- Time elapsed: 0.004 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: Expected java.lang.NumberFormatException to be thrown, but nothing was thrown.
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3111)
+	at com.hms.doctor.servlet.UpdateStatusTest.testDoPost_withInvalidId_shouldThrowNumberFormatException(UpdateStatusTest.java:64)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.hms.doctor.servlet.UpdateStatusTest.testDoPost_withInvalidDoctorId_shouldThrowNumberFormatException -- Time elapsed: 0.004 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: Expected java.lang.NumberFormatException to be thrown, but nothing was thrown.
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+	at org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+	at org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3111)
+	at com.hms.doctor.servlet.UpdateStatusTest.testDoPost_withInvalidDoctorId_shouldThrowNumberFormatException(UpdateStatusTest.java:78)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
