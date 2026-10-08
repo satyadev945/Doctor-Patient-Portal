@@ -7,6 +7,11 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+// cr-java-0065: HttpSession is now backed by Amazon ElastiCache for Redis via
+// Spring Session (RedisSessionConfig + springSessionRepositoryFilter in web.xml).
+// The HttpSession API is unchanged; Spring Session transparently stores all
+// session attributes in the distributed Redis store, enabling stateless,
+// horizontally scalable instances without sticky-session load-balancer affinity.
 import javax.servlet.http.HttpSession;
 
 import com.hms.dao.UserDAO;
@@ -22,16 +27,21 @@ public class UserLoginServlet extends HttpServlet {
 		String email = req.getParameter("email");
 		String password = req.getParameter("password");
 		
+		// cr-java-0065: req.getSession() returns a Spring Session RedisSession
+		// backed by Amazon ElastiCache for Redis.
 		HttpSession session = req.getSession();
 		
 		UserDAO userDAO = new UserDAO(DBConnection.getConn());
 		User user = userDAO.loginUser(email, password);
 		
 		if (user!=null) {
+			// cr-java-0065: User object stored in distributed Redis session –
+			// available across all application instances.
 			session.setAttribute("userObj",user);
 			resp.sendRedirect("index.jsp"); 
 		}
 		else {
+			// cr-java-0065: Error message stored in distributed Redis session.
 			session.setAttribute("errorMsg","Invalid email or password");
 			resp.sendRedirect("user_login.jsp"); 
 		}

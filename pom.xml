@@ -1,14 +1,30 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+
+	<!-- Spring Boot parent – provides dependency management and the
+	     spring-boot-maven-plugin defaults needed for executable JAR packaging.
+	     Cloud-readiness fix cr-java-0107: WAR → executable JAR with embedded Tomcat. -->
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.7.18</version>
+		<relativePath/>
+	</parent>
+
 	<groupId>com.hms</groupId>
 	<artifactId>Doctor-Patient-Portal</artifactId>
-	<packaging>war</packaging>
+	<!-- cr-java-0107 fix (line 5): packaging changed from 'war' to 'jar'
+	     so the build produces a self-contained executable JAR with an
+	     embedded Tomcat server, enabling deployment on Amazon ECS / EKS /
+	     Fargate without an external application server. -->
+	<packaging>jar</packaging>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>Doctor-Patient-Portal Maven Webapp</name>
 	<url>http://maven.apache.org</url>
 	<properties>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
+		<java.version>1.8</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -18,11 +34,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Embedded Tomcat + Servlet API provided by spring-boot-starter-web.
+		     The javax.servlet-api 'provided' dependency is no longer needed
+		     because the embedded container ships inside the executable JAR. -->
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>javax.servlet-api</artifactId>
-			<version>4.0.1</version>
-			<scope>provided</scope>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
@@ -39,6 +56,16 @@
 			<version>1.2</version>
 		</dependency>
 
+		<!-- HikariCP connection pool – cloud-readiness fix cr-java-0073
+		     Replaces raw DriverManager.getConnection() with a managed pool
+		     that integrates with Amazon RDS Proxy for optimised cloud DB
+		     connections. -->
+		<dependency>
+			<groupId>com.zaxxer</groupId>
+			<artifactId>HikariCP</artifactId>
+			<version>5.0.1</version>
+		</dependency>
+
 		<!-- https://mvnrepository.com/artifact/javax.el/javax.el-api -->
 		<dependency>
 			<groupId>javax.el</groupId>
@@ -46,14 +73,97 @@
 			<version>3.0.0</version>
 		</dependency>
 
+		<!-- AWS Secrets Manager SDK – cloud-readiness fix cr-java-0113
+		     Replaces hardcoded / embedded credentials with AWS Secrets Manager
+		     lookups via com.hms.config.SecretsManagerUtil. -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-secretsmanager</artifactId>
+			<version>1.12.470</version>
+		</dependency>
+
+		<!-- AWS core SDK (transitive requirement for aws-java-sdk-secretsmanager) -->
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-core</artifactId>
+			<version>1.12.470</version>
+		</dependency>
+
+		<!-- ============================================================
+		     Spring Session – cloud-readiness fix cr-java-0065
+		     Migrates HTTP session state from in-process JVM memory to
+		     Amazon ElastiCache for Redis, enabling stateless, horizontally
+		     scalable application instances.
+		     ============================================================ -->
+
+		<!-- Spring Context (required by Spring Session) -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context</artifactId>
+			<version>5.3.27</version>
+		</dependency>
+
+		<!-- Spring Web (provides DelegatingFilterProxy used in web.xml) -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-web</artifactId>
+			<version>5.3.27</version>
+		</dependency>
+
+		<!-- Spring Session Core -->
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-core</artifactId>
+			<version>2.7.4</version>
+		</dependency>
+
+		<!-- Spring Session Data Redis -->
+		<dependency>
+			<groupId>org.springframework.session</groupId>
+			<artifactId>spring-session-data-redis</artifactId>
+			<version>2.7.4</version>
+		</dependency>
+
+		<!-- Spring Data Redis -->
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-redis</artifactId>
+			<version>2.7.14</version>
+		</dependency>
+
+		<!-- Lettuce – non-blocking Redis client recommended for ElastiCache -->
+		<dependency>
+			<groupId>io.lettuce</groupId>
+			<artifactId>lettuce-core</artifactId>
+			<version>6.2.6.RELEASE</version>
+		</dependency>
+
+		<!-- Commons Pool2 – required for Lettuce connection pooling -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+			<version>2.11.1</version>
+		</dependency>
 
 	</dependencies>
 	<build>
 		<plugins>
+			<!-- cr-java-0107 fix (line 55): maven-war-plugin replaced with
+			     spring-boot-maven-plugin.  The 'repackage' goal wraps the
+			     compiled classes and all runtime dependencies into a single
+			     self-contained executable JAR (fat/uber JAR) that embeds
+			     Tomcat, so the application starts with 'java -jar' and
+			     requires no external application server. -->
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-war-plugin</artifactId>
-				<version>3.3.1</version>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<finalName>Doctor-Patient-Portal</finalName>

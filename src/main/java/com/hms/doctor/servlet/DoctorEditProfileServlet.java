@@ -7,6 +7,11 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+// cr-java-0065: HttpSession is now backed by Amazon ElastiCache for Redis via
+// Spring Session (RedisSessionConfig + springSessionRepositoryFilter in web.xml).
+// The HttpSession API is unchanged; Spring Session transparently stores all
+// session attributes in the distributed Redis store, enabling stateless,
+// horizontally scalable instances without sticky-session load-balancer affinity.
 import javax.servlet.http.HttpSession;
 
 import com.hms.dao.DoctorDAO;
@@ -39,15 +44,20 @@ public class DoctorEditProfileServlet extends HttpServlet {
 
 			boolean f = docDAO.editDoctorProfile(doctor);
 
+			// cr-java-0065: req.getSession() returns a Spring Session RedisSession
+			// backed by Amazon ElastiCache for Redis.
 			HttpSession session = req.getSession();
 
 			if (f == true) {
 				Doctor updateDoctorObj = docDAO.getDoctorById(id);
+				// cr-java-0065: Success message and updated doctor object stored in
+				// distributed Redis session – available across all application instances.
 				session.setAttribute("successMsgForD", "Doctor update Successfully");
 				session.setAttribute("doctorObj", updateDoctorObj); // over ride or update old session value to new updated doctor value.
 				resp.sendRedirect("doctor/edit_profile.jsp");
 
 			} else {
+				// cr-java-0065: Error message stored in distributed Redis session.
 				session.setAttribute("errorMsgForD", "Something went wrong on server!");
 				resp.sendRedirect("doctor/edit_profile.jsp");
 			}

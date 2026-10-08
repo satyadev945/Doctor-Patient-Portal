@@ -6,8 +6,9 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-//import javax.security.auth.message.callback.PrivateKeyCallback.Request;
-import javax.servlet.http.HttpSession;
+// cr-java-0065: Removed unused javax.servlet.http.HttpSession import.
+// Session state is now managed externally by Spring Session backed by
+// Amazon ElastiCache for Redis – DoctorDAO itself never touches HttpSession.
 
 import com.hms.entity.Doctor;
 
